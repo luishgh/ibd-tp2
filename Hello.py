@@ -8,7 +8,8 @@ import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator
 import warnings
 
-st.title('Trabalho Prático 2')
+st.title('Pontos de abastecimento de combustível autorizados pela ANP, Gás Natural e Biocombustíveis')
+st.markdown('**ANP**: Agência Nacional do Petróleo, Gás Natural e Biocombustíveis')
 
 st.markdown('# Conjunto de dados: Pontos de Abastecimento Autorizado')
 st.markdown('Link: https://dados.gov.br/dados/conjuntos-dados/pontos-de-abastecimento-autorizados')
@@ -47,15 +48,14 @@ st.markdown('### Numero de Instalações em Minas Gerais de cada tipo de combust
 # Seleção e Projeção
 # Numero de Instalações em Minas Gerais de cada tipo de combustivel
 df = pd.read_sql_query('''
-  SELECT COMBUSTIVEL, NUM_INSTALACOES
-  FROM (SELECT COD_COMBUSTIVEL, COUNT(COD_COMBUSTIVEL) NUM_INSTALACOES
+ SELECT COMBUSTIVEL, COUNT(COD_COMBUSTIVEL) NUM_INSTALACOES
   FROM COMBUSTIVEL
-  NATURAL JOIN INSTALACAO_COMBUSTIVEL
-  NATURAL JOIN INSTALACAO
-  NATURAL JOIN LOCALIDADE
+    NATURAL JOIN INSTALACAO_COMBUSTIVEL
+    NATURAL JOIN INSTALACAO
+    NATURAL JOIN LOCALIDADE
+    NATURAL JOIN COMBUSTIVEL
   WHERE UF = 'MG'
-  GROUP BY COD_COMBUSTIVEL) MG_COMB_TOT
-  NATURAL JOIN COMBUSTIVEL
+  GROUP BY COD_COMBUSTIVEL
   ORDER BY NUM_INSTALACOES DESC
 ''', conn)
 
@@ -66,26 +66,16 @@ st.markdown('### Quais tipos de combustivel nao são produzidos em MG?')
 # Seleção e Projeção
 # Quais tipos de combustivel nao são produzidos em MG?
 df = pd.read_sql_query('''
+  WITH COMB_MINAS AS (
+    SELECT DISTINCT COD_COMBUSTIVEL
+    FROM INSTALACAO
+      NATURAL JOIN INSTALACAO_COMBUSTIVEL
+      NATURAL JOIN LOCALIDADE
+    WHERE UF = 'MG'
+  )
   SELECT COMBUSTIVEL
-  FROM (SELECT COD_COMBUSTIVEL
   FROM COMBUSTIVEL
-  NATURAL JOIN INSTALACAO_COMBUSTIVEL
-  NATURAL JOIN INSTALACAO
-  NATURAL JOIN LOCALIDADE
-  GROUP BY COD_COMBUSTIVEL)
-  NATURAL JOIN COMBUSTIVEL
-
-  EXCEPT
-
-  SELECT COMBUSTIVEL
-  FROM (SELECT COD_COMBUSTIVEL
-  FROM COMBUSTIVEL
-  NATURAL JOIN INSTALACAO_COMBUSTIVEL
-  NATURAL JOIN INSTALACAO
-  NATURAL JOIN LOCALIDADE
-  WHERE UF = 'MG' /*AND MUNICIPIO <> 'BELO HORIZONTE'*/
-  GROUP BY COD_COMBUSTIVEL) MG_COMB_TOT
-  NATURAL JOIN COMBUSTIVEL
+  WHERE COD_COMBUSTIVEL NOT IN COMB_MINAS
 ''', conn)
 
 df
@@ -110,14 +100,15 @@ st.markdown('### Instalações que oferecem combustivel de aviação e jato')
 # Junção de duas relações
 # Instalações que oferecem combustivel de aviação e jato
 df = pd.read_sql_query('''
-  SELECT I.NOM_INSTALACAO
-  FROM INSTALACAO I
-  NATURAL JOIN INSTALACAO_COMBUSTIVEL IC
-  WHERE COD_COMBUSTIVEL IN (
+  WITH CLASSES AS (
     SELECT COD_COMBUSTIVEL
     FROM COMBUSTIVEL
     WHERE CLASSE IN ('Aviacao', 'Jato')
   )
+  SELECT NOM_INSTALACAO
+  FROM INSTALACAO
+    NATURAL JOIN INSTALACAO_COMBUSTIVEL
+  WHERE COD_COMBUSTIVEL IN CLASSES
 ''', conn)
 df
 
@@ -141,7 +132,7 @@ st.markdown('### Engenheiros que mais trabalharam isentos de licença e a insta�
 # Junção de três ou mais relações
 # Engenheiros que mais trabalharam isentos de licença e a instação em questão (na query seguinte)
 df = pd.read_sql_query('''
-  SELECT DISTINCT ENGENHEIRO, COUNT(NOM_INSTALACAO) NUM_INSTALACOES
+  SELECT DISTINCT ENGENHEIRO, COUNT(*) NUM_INSTALACOES
   FROM ENGENHEIRO
   NATURAL JOIN INSTALACAO
   NATURAL JOIN INSTALACAO_LICENCA
@@ -161,16 +152,13 @@ st.markdown('- Quais são essas instalações? São de qual UF?')
 # Junção de três relações
 # Quais são essas instalações? São de qual UF?
 df = pd.read_sql_query('''
-  SELECT DISTINCT ENGENHEIRO, NOM_INSTALACAO, UF
+ SELECT DISTINCT ENGENHEIRO, NOM_INSTALACAO, UF
   FROM ENGENHEIRO
-  NATURAL JOIN INSTALACAO
-  NATURAL JOIN INSTALACAO_LICENCA
-  NATURAL JOIN LICENCA
-  NATURAL JOIN LOCALIDADE
-  WHERE COD_LICENCA IN
-  (SELECT DISTINCT COD_LICENCA
-  FROM LICENCA
-  WHERE LICENCA = 'ISENTO')
+    NATURAL JOIN INSTALACAO
+    NATURAL JOIN INSTALACAO_LICENCA
+    NATURAL JOIN LICENCA
+    NATURAL JOIN LOCALIDADE
+  WHERE LICENCA = 'ISENTO'
 ''', conn)
 df
 
@@ -181,41 +169,37 @@ st.markdown('### UFs e o numero de instalacoes isentas de licenca ou com licenca
 df = pd.read_sql_query('''
   SELECT UF, LICENCA, COUNT(*) NUM_LICENCAS
   FROM INSTALACAO
-  NATURAL JOIN INSTALACAO_LICENCA
-  NATURAL JOIN LOCALIDADE
-  NATURAL JOIN LICENCA
-  WHERE COD_LICENCA IN
-  (SELECT DISTINCT COD_LICENCA
-  FROM LICENCA
-  WHERE LICENCA = 'ISENTO' OR LICENCA = 'AUSENTE')
+    NATURAL JOIN INSTALACAO_LICENCA
+    NATURAL JOIN LOCALIDADE
+    NATURAL JOIN LICENCA
+  WHERE LICENCA IN ('ISENTO', 'AUSENTE')
   GROUP BY UF, LICENCA
+  ORDER BY UF ASC, LICENCA ASC
 ''', conn)
 df
+
+st.bar_chart(df, x='UF', y ='NUM_LICENCAS')
 
 st.markdown('### Quais são os 5 cobustiveis com menos instalações dedicadas?')
 
 # Junção de 3 ou mais relações
 # Quais são os 5 cobustiveis com menos instalações dedicadas? Quais UFs sediam a maior parte de suas instalações?
 df = pd.read_sql_query('''
-  SELECT COMBUSTIVEL, UF, INSTS_PRESENTE
-  FROM (
-    SELECT COMBUSTIVEL, UF, COUNT(*) INSTS_PRESENTE
-    FROM INSTALACAO_COMBUSTIVEL IC
-    NATURAL JOIN (
-      SELECT COD_COMBUSTIVEL, COUNT(COD_COMBUSTIVEL) NUM_INSTALACOES
-      FROM INSTALACAO
+  WITH COMBS_MENOS_COMUNS AS (
+    SELECT COD_COMBUSTIVEL, COMBUSTIVEL, COUNT(COD_COMBUSTIVEL) NUM_INSTALACOES
+    FROM INSTALACAO
       NATURAL JOIN INSTALACAO_COMBUSTIVEL
       NATURAL JOIN COMBUSTIVEL
-      GROUP BY COD_COMBUSTIVEL
-      ORDER BY NUM_INSTALACOES
-      LIMIT 5
-    ) COMBS_MENOS_COMUNS
+    GROUP BY COD_COMBUSTIVEL
+    ORDER BY NUM_INSTALACOES ASC
+    LIMIT 5
+  )
+  SELECT COMBUSTIVEL, UF, COUNT(*) INSTS_PRESENTE
+  FROM COMBS_MENOS_COMUNS
+    NATURAL JOIN INSTALACAO_COMBUSTIVEL
     NATURAL JOIN INSTALACAO
-    NATURAL JOIN COMBUSTIVEL
     NATURAL JOIN LOCALIDADE
-    GROUP BY COMBUSTIVEL, UF
-  ) UF_COMB_COUNT
-  ORDER BY INSTS_PRESENTE
+  GROUP BY COMBUSTIVEL, UF
 ''', conn)
 df
 
@@ -245,35 +229,57 @@ st.markdown('  - Para cada tipo, qual é a UF com mais postos?')
 df = pd.DataFrame(dict).T.rename(columns={0: 'UF', 1: 'NumInstalacoes'})
 df
 
-st.markdown('### Engenheiros se especializam em projetos de apenas um tipo de combustivel?')
+st.markdown('### Núumero de projetos por engenheiro e tipo de combustível')
 
 # Agregação sobre junção de duas ou mais relações
 # Engenheiros se especializam em projetos de apenas um tipo de combustivel?
+aux = pd.read_sql_query('''
+  SELECT ENGENHEIRO, COMBUSTIVEL, COUNT(COD_COMBUSTIVEL) NUM_PROJETOS_POR_COMBUSTIVEL
+  FROM INSTALACAO
+    NATURAL JOIN ENGENHEIRO
+    NATURAL JOIN INSTALACAO_COMBUSTIVEL
+    NATURAL JOIN COMBUSTIVEL
+  GROUP BY ENGENHEIRO, COD_COMBUSTIVEL
+  ORDER BY NUM_PROJETOS_POR_COMBUSTIVEL DESC, ENGENHEIRO ASC
+''', conn)
+aux
+
+st.markdown('- Engenheiros se especializam em projetos de apenas um tipo de combustivel?')
+
 df = pd.read_sql_query('''
-  SELECT ENGENHEIRO, COMBUSTIVEL, NUM_PROJETOS_POR_COMBUSTIVEL
-  FROM (
-    SELECT E.ENGENHEIRO, IC.COD_COMBUSTIVEL, COUNT(IC.COD_COMBUSTIVEL) NUM_PROJETOS_POR_COMBUSTIVEL
-    FROM INSTALACAO I
-    NATURAL JOIN ENGENHEIRO E
-    NATURAL JOIN INSTALACAO_COMBUSTIVEL IC
-    GROUP BY E.ENGENHEIRO, IC.COD_COMBUSTIVEL
-  ) ENG_PROJ_COMB
-  NATURAL JOIN COMBUSTIVEL
-  ORDER BY ENGENHEIRO DESC, NUM_PROJETOS_POR_COMBUSTIVEL DESC
+  WITH ENG_COMB AS (
+    SELECT ENGENHEIRO, COMBUSTIVEL, COUNT(COD_COMBUSTIVEL) NUM_PROJETOS_POR_COMBUSTIVEL
+    FROM INSTALACAO
+      NATURAL JOIN ENGENHEIRO
+      NATURAL JOIN INSTALACAO_COMBUSTIVEL
+      NATURAL JOIN COMBUSTIVEL
+    GROUP BY ENGENHEIRO, COD_COMBUSTIVEL
+    ORDER BY ENGENHEIRO DESC, NUM_PROJETOS_POR_COMBUSTIVEL DESC
+  ),
+  ENG_TOT AS (
+    SELECT ENGENHEIRO, SUM(NUM_PROJETOS_POR_COMBUSTIVEL) NUM_PROJETOS
+    FROM ENG_COMB
+    GROUP BY ENGENHEIRO
+  )
+  SELECT ENGENHEIRO, COMBUSTIVEL, NUM_PROJETOS
+  FROM ENG_COMB
+    NATURAL JOIN ENG_TOT
+  WHERE NUM_PROJETOS_POR_COMBUSTIVEL = NUM_PROJETOS
+  ORDER BY NUM_PROJETOS_POR_COMBUSTIVEL DESC, ENGENHEIRO ASC
 ''', conn)
 df
 
-mask_combs_diferentes = df.ENGENHEIRO.duplicated(keep=False)
+mask_combs_diferentes = aux.ENGENHEIRO.duplicated(keep=False)
 
 # Engenheiros em projetos de diferentes tipos de combustivel
-engs_mult_combs = df.loc[mask_combs_diferentes]
+engs_mult_combs = aux.loc[mask_combs_diferentes]
 engs_mult_combs = engs_mult_combs.merge(engs_mult_combs.groupby('ENGENHEIRO').NUM_PROJETOS_POR_COMBUSTIVEL.sum(), \
                       left_on = 'ENGENHEIRO',right_on='ENGENHEIRO')
 engs_mult_combs['%PROJ_COMB'] = engs_mult_combs.NUM_PROJETOS_POR_COMBUSTIVEL_x / engs_mult_combs.NUM_PROJETOS_POR_COMBUSTIVEL_y
 engs_mult_combs = engs_mult_combs.groupby('ENGENHEIRO')[['%PROJ_COMB', 'COMBUSTIVEL']].first()
 
 # Engenheiros em projetos de um unico tipo de combustivel
-engs_unico_comb = df.loc[~mask_combs_diferentes]
+engs_unico_comb = aux.loc[~mask_combs_diferentes]
 
 st.markdown('#### Qual é a proporção dos engenheiros que se especializam em único tipo de combustivel para seus projetos?')
 # Qual é a proporção dos engenheiros que se especializam em único tipo de combustivel para seus projetos?
@@ -300,14 +306,12 @@ plt.title('Combustivel mais presente em projetos de engenheiros que trabalham co
 st.pyplot(plt)
 
 tot_comb = pd.read_sql_query('''
-  SELECT COMBUSTIVEL, NUM_INSTALACOES
-  FROM (SELECT COD_COMBUSTIVEL, COUNT(COD_COMBUSTIVEL) NUM_INSTALACOES
-  FROM COMBUSTIVEL
-  NATURAL JOIN INSTALACAO_COMBUSTIVEL
-  NATURAL JOIN INSTALACAO
-  NATURAL JOIN LOCALIDADE
-  GROUP BY COD_COMBUSTIVEL)
-  NATURAL JOIN COMBUSTIVEL
+  SELECT COMBUSTIVEL, COUNT(COD_COMBUSTIVEL) NUM_INSTALACOES
+  FROM INSTALACAO
+    NATURAL JOIN LOCALIDADE
+    NATURAL JOIN INSTALACAO_COMBUSTIVEL
+    NATURAL JOIN COMBUSTIVEL
+  GROUP BY COD_COMBUSTIVEL
 ''', conn)
 
 st.markdown('#### Combustiveis mais presentes em instalações')
@@ -336,26 +340,22 @@ próximo.""")
 # Percentual produzido de cada combustivel em relação à produção total de cada estado
 aux = pd.read_sql_query('''
   WITH COMB_UF AS (
-      SELECT COD_COMBUSTIVEL, L.UF, TANCAGEM
-    FROM INSTALACAO I
-    NATURAL JOIN LOCALIDADE L
-    NATURAL JOIN INSTALACAO_COMBUSTIVEL IC
-    NATURAL JOIN COMBUSTIVEL C
-    ORDER BY L.UF
-  )
-
-  SELECT UF, COMBUSTIVEL, TANCAGEM_COMB_UF / TANCAGEM_TOT_UF '%TANCAGEM'
-  FROM (
-    SELECT UF, COD_COMBUSTIVEL, SUM(TANCAGEM) TANCAGEM_COMB_UF, TANCAGEM_TOT_UF
+    SELECT COD_COMBUSTIVEL, COMBUSTIVEL, UF, SUM(TANCAGEM) TANCAGEM_COMB_UF
+    FROM INSTALACAO
+      NATURAL JOIN INSTALACAO_COMBUSTIVEL
+      NATURAL JOIN COMBUSTIVEL
+      NATURAL JOIN LOCALIDADE
+    GROUP BY COD_COMBUSTIVEL, UF
+  ),
+  TOT_UF AS (
+    SELECT UF, SUM(TANCAGEM_COMB_UF) TANCAGEM_TOT_UF
     FROM COMB_UF
-    NATURAL JOIN (
-      SELECT UF, SUM(TANCAGEM) TANCAGEM_TOT_UF
-      FROM COMB_UF
-      GROUP BY UF
-  ) UF_TOT
-  GROUP BY UF, COD_COMBUSTIVEL) TANCAGEM_UF_COMB
-  NATURAL JOIN COMBUSTIVEL
-  ORDER BY UF, '%TANCAGEM' DESC
+    GROUP BY UF
+  )
+  SELECT UF, COMBUSTIVEL, TANCAGEM_COMB_UF / TANCAGEM_TOT_UF '%TANCAGEM'
+  FROM COMB_UF
+    NATURAL JOIN TOT_UF
+  GROUP BY UF, COD_COMBUSTIVEL
 
 ''', conn)
 aux
