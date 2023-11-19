@@ -14,8 +14,13 @@ st.markdown('**ANP**: Agência Nacional do Petróleo, Gás Natural e Biocombust�
 st.markdown('# Conjunto de dados: Pontos de Abastecimento Autorizado')
 st.markdown('Link: https://dados.gov.br/dados/conjuntos-dados/pontos-de-abastecimento-autorizados')
 
+st.header('Diagramas')
+
+st.subheader('Diagrama ER')
+#st.image('assets/diagrama_er.png')
+
 st.markdown('''
-# Table of Contents
+# Consultas
 1. [Consulta 1](#consulta-1)
 2. [Consulta 2](#consulta-2)
 3. [Consulta 3](#consulta-3)
@@ -40,8 +45,6 @@ cursor = conn.cursor()
 f = io.open('./dump.sql', 'r', encoding='utf-8')
 sql = f.read()
 cursor.executescript(sql)
-
-st.markdown('## Consultas')
 
 st.markdown('### Consulta 1')
 st.markdown('Instalações em Belo Horizonte ordenadas pelo volume de sua tancagem (de qualquer combustivel) em ordem decrescente')
