@@ -11,13 +11,15 @@ import warnings
 st.title('Pontos de abastecimento de combustível autorizados pela ANP, Gás Natural e Biocombustíveis')
 st.markdown('**ANP**: Agência Nacional do Petróleo, Gás Natural e Biocombustíveis')
 
-st.markdown('# Conjunto de dados: Pontos de Abastecimento Autorizado')
-st.markdown('Link: https://dados.gov.br/dados/conjuntos-dados/pontos-de-abastecimento-autorizados')
+st.markdown('**Link do conjunto de dados**: https://dados.gov.br/dados/conjuntos-dados/pontos-de-abastecimento-autorizados')
 
 st.header('Diagramas')
 
 st.subheader('Diagrama ER')
-#st.image('assets/diagrama_er.png')
+st.image('assets/diagrama_er.png')
+
+st.subheader('Diagrama Relacional')
+st.image('assets/diagrama_relacional.png')
 
 st.markdown('''
 # Consultas
