@@ -14,6 +14,20 @@ st.markdown('**ANP**: Agência Nacional do Petróleo, Gás Natural e Biocombust�
 st.markdown('# Conjunto de dados: Pontos de Abastecimento Autorizado')
 st.markdown('Link: https://dados.gov.br/dados/conjuntos-dados/pontos-de-abastecimento-autorizados')
 
+st.markdown('''
+# Table of Contents
+1. [Consulta 1](#consulta-1)
+2. [Consulta 2](#consulta-2)
+3. [Consulta 3](#consulta-3)
+4. [Consulta 4](#consulta-4)
+5. [Consulta 5](#consulta-5)
+6. [Consulta 6](#consulta-6)
+7. [Consulta 7](#consulta-7)
+8. [Consulta 8](#consulta-8)
+9. [Consulta 9](#consulta-9)
+10. [Consulta 10](#consulta-10)
+''')
+
 # Import database
 try:
     os.remove('/tmp/consult.db')
@@ -29,25 +43,29 @@ cursor.executescript(sql)
 
 st.markdown('## Consultas')
 
-st.markdown('### Instalações em Belo Horizonte ordenadas pelo volume de sua tancagem (de qualquer combustivel) em ordem decrescente')
+st.markdown('### Consulta 1')
+st.markdown('Instalações em Belo Horizonte ordenadas pelo volume de sua tancagem (de qualquer combustivel) em ordem decrescente')
 
 # Seleção e Projeção
 # Instalações em Belo Horizonte ordenadas pelo volume de sua tancagem (de qualquer combustivel) em ordem decrescente
-df = pd.read_sql_query('''
+query = '''
   SELECT DISTINCT TANCAGEM, COD_INSTALACAO, NOM_INSTALACAO, DSC_ENDERECO, NUM_ENDERECO, CEP
   FROM INSTALACAO NATURAL JOIN LOCALIDADE
   NATURAL JOIN INSTALACAO_COMBUSTIVEL
   WHERE MUNICIPIO LIKE 'Belo Horizonte'
   ORDER BY TANCAGEM DESC
-''', conn)
+'''
+df = pd.read_sql_query(query, conn)
+st.code(query, language='sql')
 
 df
 
-st.markdown('### Numero de Instalações em Minas Gerais de cada tipo de combustivel')
+st.markdown('### Consulta 2')
+st.markdown('Numero de Instalações em Minas Gerais de cada tipo de combustivel')
 
 # Seleção e Projeção
 # Numero de Instalações em Minas Gerais de cada tipo de combustivel
-df = pd.read_sql_query('''
+query = '''
  SELECT COMBUSTIVEL, COUNT(COD_COMBUSTIVEL) NUM_INSTALACOES
   FROM COMBUSTIVEL
     NATURAL JOIN INSTALACAO_COMBUSTIVEL
@@ -57,15 +75,16 @@ df = pd.read_sql_query('''
   WHERE UF = 'MG'
   GROUP BY COD_COMBUSTIVEL
   ORDER BY NUM_INSTALACOES DESC
-''', conn)
-
+'''
+df = pd.read_sql_query(query, conn)
+st.code(query, language='sql')
 df
 
-st.markdown('### Quais tipos de combustivel nao são produzidos em MG?')
+st.markdown('#### Quais tipos de combustivel nao são produzidos em MG?')
 
 # Seleção e Projeção
 # Quais tipos de combustivel nao são produzidos em MG?
-df = pd.read_sql_query('''
+query = '''
   WITH COMB_MINAS AS (
     SELECT DISTINCT COD_COMBUSTIVEL
     FROM INSTALACAO
@@ -76,30 +95,34 @@ df = pd.read_sql_query('''
   SELECT COMBUSTIVEL
   FROM COMBUSTIVEL
   WHERE COD_COMBUSTIVEL NOT IN COMB_MINAS
-''', conn)
-
+'''
+df = pd.read_sql_query(query, conn)
+st.code(query, language='sql')
 df
 
-st.markdown('### Ranqueamento de todos os estados pelo número de instalações')
+st.markdown('### Consulta 3')
+st.markdown('Ranqueamento de todos os estados pelo número de instalações')
 
 # Junção de duas relações;
 # Ranqueamento de todos os estados pelo número de instalações
-df = pd.read_sql_query('''
+query = '''
   SELECT UF, COUNT(*) AS NUM_INSTALACOES
   FROM INSTALACAO
   NATURAL JOIN LOCALIDADE
   GROUP BY UF
   ORDER BY NUM_INSTALACOES DESC
-''', conn)
-
+'''
+df = pd.read_sql_query(query, conn)
+st.code(query, language='sql')
 df
 st.bar_chart(df, x='UF', y='NUM_INSTALACOES')
 
-st.markdown('### Instalações que oferecem combustivel de aviação e jato')
+st.markdown('### Consulta 4')
+st.markdown('Instalações que oferecem combustivel de aviação e jato')
 
 # Junção de duas relações
 # Instalações que oferecem combustivel de aviação e jato
-df = pd.read_sql_query('''
+query = '''
   WITH CLASSES AS (
     SELECT COD_COMBUSTIVEL
     FROM COMBUSTIVEL
@@ -109,29 +132,35 @@ df = pd.read_sql_query('''
   FROM INSTALACAO
     NATURAL JOIN INSTALACAO_COMBUSTIVEL
   WHERE COD_COMBUSTIVEL IN CLASSES
-''', conn)
+'''
+df = pd.read_sql_query(query, conn)
+st.code(query, language='sql')
 df
 
-st.markdown('### Rankeamento de orgãos emissores pelo numero de licencas concedidas, desconsiderando as ausentes e isentas')
+st.markdown('### Consulta 5')
+st.markdown('Rankeamento de orgãos emissores pelo numero de licencas concedidas, desconsiderando as ausentes e isentas')
 
 # Junção de duas relações
 # Rankeamento de orgãos emissores pelo numero de licencas concedidas, desconsiderando as ausentes e isentas
-df = pd.read_sql_query('''
+query = '''
   SELECT EMISSOR, COUNT(*) as LICENÇAS
   FROM LICENCA
   NATURAL JOIN INSTALACAO_LICENCA
   WHERE LICENCA <> 'ISENTO' and LICENCA <> 'AUSENTE'
   GROUP BY EMISSOR
   ORDER BY LICENÇAS DESC
-''', conn)
+'''
+df = pd.read_sql_query(query, conn)
+st.code(query, language='sql')
 df
 st.bar_chart(df, x='EMISSOR', y='LICENÇAS')
 
-st.markdown('### Engenheiros que mais trabalharam isentos de licença e a instação em questão (na query seguinte)')
+st.markdown('### Consulta 6')
+st.markdown('Engenheiros que mais trabalharam isentos de licença e a instação em questão (na query seguinte)')
 
 # Junção de três ou mais relações
 # Engenheiros que mais trabalharam isentos de licença e a instação em questão (na query seguinte)
-df = pd.read_sql_query('''
+query = '''
   SELECT DISTINCT ENGENHEIRO, COUNT(*) NUM_INSTALACOES
   FROM ENGENHEIRO
   NATURAL JOIN INSTALACAO
@@ -143,7 +172,9 @@ df = pd.read_sql_query('''
   WHERE LICENCA = 'ISENTO')
   GROUP BY ENGENHEIRO
   ORDER BY NUM_INSTALACOES DESC
-''', conn)
+'''
+df = pd.read_sql_query(query, conn)
+st.code(query, language='sql')
 df
 st.bar_chart(df, x='ENGENHEIRO', y='NUM_INSTALACOES')
 
@@ -151,7 +182,7 @@ st.markdown('- Quais são essas instalações? São de qual UF?')
 
 # Junção de três relações
 # Quais são essas instalações? São de qual UF?
-df = pd.read_sql_query('''
+query = '''
  SELECT DISTINCT ENGENHEIRO, NOM_INSTALACAO, UF
   FROM ENGENHEIRO
     NATURAL JOIN INSTALACAO
@@ -159,15 +190,19 @@ df = pd.read_sql_query('''
     NATURAL JOIN LICENCA
     NATURAL JOIN LOCALIDADE
   WHERE LICENCA = 'ISENTO'
-''', conn)
+'''
+df = pd.read_sql_query(query, conn)
+st.code(query, language='sql')
 df
 
-st.markdown('### UFs e o numero de instalacoes isentas de licenca ou com licenca ausente')
+st.markdown('### Consulta 7')
+st.markdown('UFs e o numero de instalacoes isentas de licenca ou com licenca ausente')
 
 # Junção de três ou mais relações
 # UFs e o numero de instalacoes isentas de licenca ou com licenca ausente
-df = pd.read_sql_query('''
-  SELECT UF, LICENCA, COUNT(*) NUM_LICENCAS
+query = '''
+  WITH UF_AUS_ISE AS(
+   SELECT UF, LICENCA, COUNT(*) NUM_LICENCAS
   FROM INSTALACAO
     NATURAL JOIN INSTALACAO_LICENCA
     NATURAL JOIN LOCALIDADE
@@ -175,16 +210,36 @@ df = pd.read_sql_query('''
   WHERE LICENCA IN ('ISENTO', 'AUSENTE')
   GROUP BY UF, LICENCA
   ORDER BY UF ASC, LICENCA ASC
-''', conn)
+),
+UF_ISE AS (
+  SELECT UF, LICENCA, NUM_LICENCAS
+  FROM UF_AUS_ISE
+  WHERE LICENCA = 'ISENTO'
+),
+UF_AUS AS (
+  SELECT UF, LICENCA, NUM_LICENCAS
+  FROM UF_AUS_ISE
+  WHERE LICENCA = 'AUSENTE'
+)
+
+SELECT UF_ISE.UF, UF_ISE. NUM_LICENCAS AS '#ISENTO', UF_AUS. NUM_LICENCAS '#AUSENTE'
+FROM UF_ISE
+INNER JOIN UF_AUS
+ON UF_ISE.UF = UF_AUS.UF
+ORDER BY UF_ISE.UF
+'''
+df = pd.read_sql_query(query, conn)
+st.code(query, language='sql')
 df
 
-st.bar_chart(df, x='UF', y ='NUM_LICENCAS')
+st.bar_chart(df, x='UF')
 
-st.markdown('### Quais são os 5 cobustiveis com menos instalações dedicadas?')
+st.markdown('### Consulta 8')
+st.markdown('Quais são os 5 cobustiveis com menos instalações dedicadas?')
 
 # Junção de 3 ou mais relações
 # Quais são os 5 cobustiveis com menos instalações dedicadas? Quais UFs sediam a maior parte de suas instalações?
-df = pd.read_sql_query('''
+query = '''
   WITH COMBS_MENOS_COMUNS AS (
     SELECT COD_COMBUSTIVEL, COMBUSTIVEL, COUNT(COD_COMBUSTIVEL) NUM_INSTALACOES
     FROM INSTALACAO
@@ -200,7 +255,9 @@ df = pd.read_sql_query('''
     NATURAL JOIN INSTALACAO
     NATURAL JOIN LOCALIDADE
   GROUP BY COMBUSTIVEL, UF
-''', conn)
+'''
+df = pd.read_sql_query(query, conn)
+st.code(query, language='sql')
 df
 
 st.markdown('  - Quais UFs sediam a maior parte de suas instalações?')
@@ -229,11 +286,12 @@ st.markdown('  - Para cada tipo, qual é a UF com mais postos?')
 df = pd.DataFrame(dict).T.rename(columns={0: 'UF', 1: 'NumInstalacoes'})
 df
 
-st.markdown('### Núumero de projetos por engenheiro e tipo de combustível')
+st.markdown('### Consulta 9')
+st.markdown('Número de projetos por engenheiro e tipo de combustível')
 
 # Agregação sobre junção de duas ou mais relações
 # Engenheiros se especializam em projetos de apenas um tipo de combustivel?
-aux = pd.read_sql_query('''
+query = '''
   SELECT ENGENHEIRO, COMBUSTIVEL, COUNT(COD_COMBUSTIVEL) NUM_PROJETOS_POR_COMBUSTIVEL
   FROM INSTALACAO
     NATURAL JOIN ENGENHEIRO
@@ -241,12 +299,14 @@ aux = pd.read_sql_query('''
     NATURAL JOIN COMBUSTIVEL
   GROUP BY ENGENHEIRO, COD_COMBUSTIVEL
   ORDER BY NUM_PROJETOS_POR_COMBUSTIVEL DESC, ENGENHEIRO ASC
-''', conn)
+'''
+aux = pd.read_sql_query(query, conn)
+st.code(query, language='sql')
 aux
 
 st.markdown('- Engenheiros se especializam em projetos de apenas um tipo de combustivel?')
 
-df = pd.read_sql_query('''
+query = '''
   WITH ENG_COMB AS (
     SELECT ENGENHEIRO, COMBUSTIVEL, COUNT(COD_COMBUSTIVEL) NUM_PROJETOS_POR_COMBUSTIVEL
     FROM INSTALACAO
@@ -266,7 +326,9 @@ df = pd.read_sql_query('''
     NATURAL JOIN ENG_TOT
   WHERE NUM_PROJETOS_POR_COMBUSTIVEL = NUM_PROJETOS
   ORDER BY NUM_PROJETOS_POR_COMBUSTIVEL DESC, ENGENHEIRO ASC
-''', conn)
+'''
+df = pd.read_sql_query(query, conn)
+st.code(query, language='sql')
 df
 
 mask_combs_diferentes = aux.ENGENHEIRO.duplicated(keep=False)
@@ -329,7 +391,8 @@ Notamos que engenheiros especializados, no geral, trabalham com instalações qu
 É possível perceber que a maior parte dos engenheiros trabalham com projetos de um único tipo de combustível, o que é um indicativo de que a especialização desse tipo de profissional é comum. E faz sentido que os tipos de combustivel mais presente em instalações de maneira geral sejam aqueles com os quais a maior parte dos engenheiros trabalha.
 """)
 
-st.markdown('### Percentual produzido de cada combustivel em relação à produção total de cada estado')
+st.markdown('### Consulta 10')
+st.markdown('Percentual produzido de cada combustivel em relação à produção total de cada estado')
 
 st.markdown("""**Tancagem**: é o volume total que pode ser armazenado nas unidades,
 cadastrado como capacidade operacional pela ANP. A
@@ -338,7 +401,7 @@ próximo.""")
 
 # Agregação sobre junção de duas ou mais relações
 # Percentual produzido de cada combustivel em relação à produção total de cada estado
-aux = pd.read_sql_query('''
+query = '''
   WITH COMB_UF AS (
     SELECT COD_COMBUSTIVEL, COMBUSTIVEL, UF, SUM(TANCAGEM) TANCAGEM_COMB_UF
     FROM INSTALACAO
@@ -357,7 +420,9 @@ aux = pd.read_sql_query('''
     NATURAL JOIN TOT_UF
   GROUP BY UF, COD_COMBUSTIVEL
 
-''', conn)
+'''
+aux = pd.read_sql_query(query, conn)
+st.code(query, language='sql')
 aux
 
 st.markdown('#### Qual tipo de combustivel é o majoritario em cada estado?')
